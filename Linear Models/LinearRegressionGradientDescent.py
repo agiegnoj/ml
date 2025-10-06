@@ -49,8 +49,3 @@ class LinearRegressionGradientDescent:
     def __biasGradient(self, yPred, y):
         return 2*np.sum((yPred-y))/len(y)
     
-w = np.array([[1, 2, 3], [2, 3, 4], [3, 4, 5], [0, 1,2], [5, 6,7], [88, 2, 2], [23, 45, 20], [-1, -2, 2]])
-v = np.array([x[0]+x[2] for x in w])
-lr = LinearRegressionGradientDescent(1e-3)
-lr.fit (w, v, 100)
-print (lr.predict(np.array([8, 7, 6])))
