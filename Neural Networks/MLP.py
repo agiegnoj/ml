@@ -1,7 +1,9 @@
 import numpy as np
 
-class MLPClassifier:
-    def __init__(self, learningRate):
+class MLP:
+    def __init__(self, learningRate, mode):
+        assert mode == "Classifier" or mode == "Regression", "unknown mode"
+        self.mode = mode
         self.layers = []
         self.learningRate = learningRate
 
@@ -29,12 +31,19 @@ class MLPClassifier:
             pre_activations.append(z)
             activations.append(a)
 
-        z = activations[-1] @ self.layers[-1].weights + self.layers[-1].bias
-        a = self.__softmax(z)
-        pre_activations.append(z)
-        activations.append(a)
+        if self.mode == "Classifier":
+          z = activations[-1] @ self.layers[-1].weights + self.layers[-1].bias
+          a = self.__softmax(z)
+          pre_activations.append(z)
+          activations.append(a)
+          return a, activations, pre_activations
+        
+        else:
+            z = activations[-1] @ self.layers[-1].weights + self.layers[-1].bias
+            pre_activations.append(z)
+            return z, activations, pre_activations
 
-        return a, activations, pre_activations
+        
 
     def __backward(self, output, y, activations, pre_activations):
         error = output - y
@@ -65,7 +74,10 @@ class MLPClassifier:
 
     def predict(self, x):
         output, _, _ = self.__forward(x)
-        return np.argmax(output, axis=1)
+        if self.mode == "Classifier":
+          return np.argmax(output, axis=1) 
+        else:
+            return output
 
 class Layer:
     def __init__(self, input_dim, output_dim):
