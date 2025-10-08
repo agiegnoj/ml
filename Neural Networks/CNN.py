@@ -1,5 +1,4 @@
 import numpy as np
-from multiprocessing import Manager, Process, freeze_support
 
 class CNN:
     # config = filterSizes, stepSizes, pfilterSizes, pstepSizes (each as a list)
@@ -153,4 +152,5 @@ class PoolingLayer:
                     maxPos = memoMap[i, j]
                     deltaRelu[idx][maxPos] = deltaPooled[idx][i, j]
         return deltaRelu
+
     
