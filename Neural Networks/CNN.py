@@ -1,7 +1,8 @@
 import numpy as np
+from joblib import Parallel, delayed
 
 class CNN:
-    # config = filterSizes, stepSizes, pfilterSizes, pstepSizes (each as a list)
+    # config = noOfFilters, filterSizes, stepSizes, pfilterSizes, pstepSizes (each as a list)
     
     def __init__(self, config, learningRate, mode, noOfFilterAndPoolingCombinations, filterLearningrate):
         assert mode in ["Classifier", "Regression"], "unknown mode"
@@ -20,6 +21,7 @@ class CNN:
         self.uniqueClasses = len(np.unique(classes))
         
         for epoch in range(epochs):
+            print (epoch)
             for idx in range(len(images)):
                 pred, error, flattened, preFlattenedDimensions = self.__forward(images[idx], classes[idx], self.uniqueClasses)
                 self.__backward(error, flattened, preFlattenedDimensions)
@@ -77,14 +79,18 @@ class FilterLayer:
             self.filters = [np.random.rand(depth, self.filterSize, self.filterSize)*0.1 for _ in range(self.noOfFilters)]
         self.prefiltered = input
         size = (input.shape[1] - self.filterSize) // self.stepSize + 1
-        self.activated = np.array([self.__relu(self.__applyFilter(input, f, size))for f in self.filters])
+
+        self.activated = Parallel(n_jobs=-1)(
+            delayed(FilterLayer.applyFilter)(input, f, size, self.stepSize, self.filterSize) for f in self.filters
+        )
+        self.activated = np.array([self.__relu(a) for a in self.activated])
         return self.activated
 
     def backward(self, deltaRelu):
         grad_input = np.zeros_like(self.prefiltered)
         grad_filters = [np.zeros_like(f) for f in self.filters]
         size = (self.prefiltered.shape[1] - self.filterSize) // self.stepSize + 1
-        
+
         for idx, (filter, activation) in enumerate(zip(self.filters, self.activated)):
             relu_mask = activation > 0
             delta = deltaRelu[idx] * relu_mask
@@ -98,17 +104,19 @@ class FilterLayer:
                                   j*self.stepSize:j*self.stepSize+self.filterSize] += delta[i, j] * filter
             self.filters[idx] -= self.learningRate* grad_filters[idx]
         return grad_input
+    
 
     def __relu(self, x):
         return np.maximum(x, 0)
 
-    def __applyFilter(self, input, filter, size):
+    @staticmethod
+    def applyFilter(input, filter, size, stepSize,  filterSize):
         
         output = np.zeros((size, size))
         for i in range(size):
             for j in range(size):
-                region = input[:, i*self.stepSize:i*self.stepSize+self.filterSize,
-                                  j*self.stepSize:j*self.stepSize+self.filterSize]
+                region = input[:, i*stepSize:i*stepSize+filterSize,
+                                  j*stepSize:j*stepSize+filterSize]
                 output[i, j] = np.sum(region * filter)
 
         return output
@@ -120,27 +128,31 @@ class PoolingLayer:
         self.stepSizes = stepSizes
 
     def forward(self, input):
-        self.memo = []
+        
         self.reluInput = input
         pooled = []
         
-        for m in input:
-            pooledMap, memoMap = self.__applyPooling(m)
-            pooled.append(pooledMap)
-            self.memo.append(memoMap)
+        results = Parallel(n_jobs=-1)(
+            delayed (PoolingLayer.applyPooling)(m, self.filterSizes, self.stepSizes)
+            for m in input
+        )
+
+        pooled, self.memo = zip(*results)
+        
         return np.array(pooled)
 
-    def __applyPooling(self, input):
-        size = (input.shape[0] - self.filterSizes) // self.stepSizes + 1
+    @staticmethod
+    def applyPooling(input, filterSizes, stepSizes):
+        size = (input.shape[0] - filterSizes) //stepSizes + 1
         output = np.zeros((size, size))
         memo = np.zeros((size, size), dtype=object)
         for i in range(size):
             for j in range(size):
-                region = input[i*self.stepSizes:i*self.stepSizes+self.filterSizes,
-                               j*self.stepSizes:j*self.stepSizes+self.filterSizes]
+                region = input[i*stepSizes:i*stepSizes+filterSizes,
+                               j*stepSizes:j*stepSizes+filterSizes]
                 maxIndex = np.argmax(region)
                 maxPos = np.unravel_index(maxIndex, region.shape)
-                memo[i, j] = (i*self.stepSizes + maxPos[0], j*self.stepSizes + maxPos[1])
+                memo[i, j] = (i*stepSizes + maxPos[0], j*stepSizes + maxPos[1])
                 output[i, j] = region[maxPos]
         return output, memo
 
@@ -154,3 +166,11 @@ class PoolingLayer:
         return deltaRelu
 
     
+image = np.zeros((50, 50))
+image2 = np.ones((50, 50))
+image3 = np.ones((50, 50))*0.1
+classes = [0, 1, 2]
+config = [[8, 4], [4, 4], [1, 1], [2, 2], [1,1]]
+cnn = CNN (config, 1e-3, "Classifier", 2, 1e-3)
+cnn.fit([image, image2, image3], classes, 100)
+print (cnn.predict(image))
