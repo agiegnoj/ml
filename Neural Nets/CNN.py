@@ -153,11 +153,3 @@ class PoolingLayer:
                     maxPos = memoMap[i, j]
                     deltaRelu[idx][maxPos] = deltaPooled[idx][i, j]
         return deltaRelu
-image = np.zeros((50, 50))
-image2 = np.ones((50, 50))
-image3 = np.ones((50, 50))
-classes = [0, 1, 2]
-config = [[8, 4], [4, 4], [1, 1], [4, 4], [1,1]]
-cnn = CNN (config, 1e-3, "Classifier", 2, 1e-3)
-cnn.fit([image, image2, image3], classes, 100)
-print (cnn.predict(image))
