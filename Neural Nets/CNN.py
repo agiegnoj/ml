@@ -1,8 +1,7 @@
 import numpy as np
-from joblib import parallel, delayed
 
 class CNN:
-    # config = filterSizes, stepSizes, pfilterSizes, pstepSizes (each as a list)
+    # config = noOfFilters, filterSizes, stepSizes, pfilterSizes, pstepSizes (each as a list)
     
     def __init__(self, config, learningRate, mode, noOfFilterAndPoolingCombinations, filterLearningrate):
         assert mode in ["Classifier", "Regression"], "unknown mode"
@@ -153,3 +152,4 @@ class PoolingLayer:
                     maxPos = memoMap[i, j]
                     deltaRelu[idx][maxPos] = deltaPooled[idx][i, j]
         return deltaRelu
+
